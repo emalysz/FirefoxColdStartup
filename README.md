@@ -1,2 +1,2 @@
 # FirefoxColdStartup
-Contains startup scripts to open, profile, and collect procmon logs and diskify files for particular builds.
+Contains startup scripts to open particular builds of Firefox and collect associated procmon logs, diskify files, and profiles. 
