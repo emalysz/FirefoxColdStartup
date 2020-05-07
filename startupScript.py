@@ -37,10 +37,11 @@ from mozrunner import FirefoxRunner
 # AFTER RUNNING SCRIPT:
 # Re-enable UAC prompts. 
 
-# TODO: Edit these to links to control and test builds (and add any other builds necessary).
-controlLink = ''
-testLink = ''
-
+# TODO: Edit this list to include labels and links for builds
+buildList = [
+	Build("control", "<link>"),
+	Build("test", "<link>"),
+]
 
 keyboard = Controller()
 
@@ -196,13 +197,6 @@ else:
 	# Delete log.pml file
 	print("Delete log.pml")
 	os.remove(logPML)
-
-# Add builds to buildList
-buildList = []
-controlBuild = Build("control", controlLink)
-testBuild = Build("test", testLink)
-buildList.append(controlBuild)
-buildList.append(testBuild)
 
 # Randomly select what type of build we are going to profile
 testBuild = random.choice(buildList)
