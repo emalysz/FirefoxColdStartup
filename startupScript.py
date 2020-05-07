@@ -6,10 +6,12 @@ import psutil
 import fnmatch
 import shutil
 import random
+import traceback
 import ctypes, sys
 import winreg
 from shutil import move
 from pathlib import Path
+from datetime import datetime
 from pynput.keyboard import Key, Controller
 from zipfile import ZipFile
 import win32com.shell.shell as win32shell 
@@ -69,6 +71,37 @@ def disable_UAC():
 pathToExperimentFolder = home + '\\Experiment'
 # BuildType.txt will indicate if the last run was a control or test build
 buildTypeFilePath = pathToExperimentFolder + '\\BuildType.txt'
+
+# This is not generally advisable, but this will ensure that our script
+# doesn't just get hung overnight.
+def restart_excepthook(etype, value, tb):
+	excString = ''.join(traceback.format_exception(etype, value, tb))
+	# Append errors to an Errors.txt file so that we can go back and look through them after,
+	# say, running the script overnight.
+	with open(pathToExperimentFolder + '\\Errors.txt', "a+") as errorFile:
+		errorFile.write("##### BEGIN ERROR ####\n")
+		errorFile.write(str(datetime.now()) + "\n")
+		errorFile.write(excString)
+		errorFile.write("#####  END ERROR  ####\n\n")
+	print(excString)	
+
+	# Remove the BuildType.txt file, so the script starts over with a fresh slate.
+	# We will however continue to hold on to our results.
+	try:
+		os.remove(buildTypeFilePath)
+	except FileNotFoundError:
+		pass
+
+	# Give two minutes for the script runner to maybe look over and notice that the script is
+	# in an error state, then just try to restart and continue as usual.
+	print("Restarting system in two minutes due to error")
+	time.sleep(120)
+	os.system("shutdown /r /t 1")
+
+
+sys.excepthook = restart_excepthook
+
+raise Exception("Bob!")
 
 try:
 	os.mkdir(pathToExperimentFolder)
