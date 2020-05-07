@@ -214,7 +214,6 @@ cohort = testBuild.label
 print("Write information to BuildType.txt")
 with open(buildTypeFilePath, "wt") as fin:
 	fin.write(cohort)
-	fin.close()
 
 # Download a build from task cluster 
 print("Download build from task cluster")
