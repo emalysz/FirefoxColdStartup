@@ -67,16 +67,17 @@ def disable_UAC():
 
 # Create a folder to place all profiles, procmon logs, and disk files into
 pathToExperimentFolder = home + '\\Experiment'
-try:
-	os.mkdir(pathToExperimentFolder)
-except OSError:
-	print ("Creation of the directory %s failed because it already exists" % pathToExperimentFolder)
-else:
-	isFirstRun = True
-	print ("Successfully created the diretory %s " % pathToExperimentFolder)
-
 # BuildType.txt will indicate if the last run was a control or test build
 buildTypeFilePath = pathToExperimentFolder + '\\BuildType.txt'
+
+try:
+	os.mkdir(pathToExperimentFolder)
+	print ("Successfully created the diretory %s " % pathToExperimentFolder)
+except OSError:
+	print ("Creation of the directory %s failed because it already exists" % pathToExperimentFolder)
+
+if not os.path.exists(buildTypeFilePath):
+	isFirstRun = True
 
 if isFirstRun:
 	# Create our file that holds the last build we ran
