@@ -115,7 +115,7 @@ else:
 	with keyboard.pressed(Key.alt):
 		keyboard.press(Key.f4)
 
-	time.sleep(4)
+	time.sleep(30)
 
 	# Delete the build
 	print("Delete the build")
@@ -215,6 +215,7 @@ while buildStarts > 0:
 	with keyboard.pressed(Key.alt):
 		keyboard.press(Key.f4)
 	buildStarts -= 1
+	time.sleep(30)
 
 # Restart
 print("Restart system")
