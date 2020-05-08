@@ -37,10 +37,15 @@ from mozrunner import FirefoxRunner
 # AFTER RUNNING SCRIPT:
 # Re-enable UAC prompts. 
 
+class Build:
+	def __init__(self, label, buildLink):
+		self.label = label
+		self.buildLink = buildLink
+
 # TODO: Edit this list to include labels and links for builds
 buildList = [
-	Build("control", "<link>"),
-	Build("test", "<link>"),
+	Build("control", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/QZejzYl1TVmmBv8ABXzzAg/runs/0/artifacts/public/build/target.zip"),
+	Build("mod_prefetch", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/CLxX1dPORFKMmGa20KmHvg/runs/0/artifacts/public/build/target.zip"),
 ]
 
 keyboard = Controller()
@@ -48,6 +53,7 @@ keyboard = Controller()
 # Paths to executables and batch files
 home = str(Path.home())
 firefox = home + '\\Downloads\\targetUnzip\\firefox\\firefox.exe'
+testProfile = home + '\\testprofile'
 procmonFolder = home + '\\Documents\\ProcessMonitor'
 openProcmonBatch = procmonFolder + '\\openProcmon.bat'
 saveProcmonBatch = procmonFolder + '\\saveProcmon.bat'
@@ -56,11 +62,6 @@ preferences = home + '\\preferences.js'
 
 isFirstRun = False
 
-class Build:
-	def __init__(self, label, buildLink):
-		self.label = label
-		self.buildLink = buildLink
-
 # Disable UAC prompt to run procmon
 def disable_UAC():
     command1 = 'reg delete HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v EnableLUA'
@@ -68,15 +69,20 @@ def disable_UAC():
     command2 = 'reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v EnableLUA /t REG_DWORD /d 0 /f'
     win32shell.ShellExecuteEx(lpVerb='runas', lpFile='cmd.exe', lpParameters='/c ' + command2)
 
+def run_firefox():
+	subprocess.Popen([firefox, "-profile", testProfile])
+
 # Create a folder to place all profiles, procmon logs, and disk files into
 pathToExperimentFolder = home + '\\Experiment'
 # BuildType.txt will indicate if the last run was a control or test build
 buildTypeFilePath = pathToExperimentFolder + '\\BuildType.txt'
+useRandomBuildPath = pathToExperimentFolder + '\\UseRandomBuild'
 
 # This is not generally advisable, but this will ensure that our script
 # doesn't just get hung overnight.
 def restart_excepthook(etype, value, tb):
 	excString = ''.join(traceback.format_exception(etype, value, tb))
+	print(excString)	
 	# Append errors to an Errors.txt file so that we can go back and look through them after,
 	# say, running the script overnight.
 	with open(pathToExperimentFolder + '\\Errors.txt', "a+") as errorFile:
@@ -84,7 +90,6 @@ def restart_excepthook(etype, value, tb):
 		errorFile.write(str(datetime.now()) + "\n")
 		errorFile.write(excString)
 		errorFile.write("#####  END ERROR  ####\n\n")
-	print(excString)	
 
 	# Remove the BuildType.txt file, so the script starts over with a fresh slate.
 	# We will however continue to hold on to our results.
@@ -102,8 +107,6 @@ def restart_excepthook(etype, value, tb):
 
 sys.excepthook = restart_excepthook
 
-raise Exception("Bob!")
-
 try:
 	os.mkdir(pathToExperimentFolder)
 	print ("Successfully created the diretory %s " % pathToExperimentFolder)
@@ -113,11 +116,20 @@ except OSError:
 if not os.path.exists(buildTypeFilePath):
 	isFirstRun = True
 
+if os.path.exists(useRandomBuildPath):
+	useRandomBuild = True
+	os.remove(useRandomBuildPath)
+else:
+	useRandomBuild = False
+	open(useRandomBuildPath, "w+").close()
+
+cohort = None
+
 if isFirstRun:
 	# Create our file that holds the last build we ran
 	print("First run - create BuildType.txt")
 	with open(buildTypeFilePath, "w+") as fin:
-		cohort = fin.read()
+		pass
 
 	# Disable UAC prompt
 	print("Disable UAC prompt")	
@@ -136,10 +148,10 @@ else:
 
 	# Launch the profile
 	print("Launching firefox instance that will be profiled")
-	subprocess.Popen(firefox)
+	run_firefox()
 
 	# Wait for it to settle 
-	time.sleep(30)
+	time.sleep(80)
 
 	# Save Procmon log
 	print("Save procmon log and diskify file")
@@ -159,9 +171,8 @@ else:
 	# Find the most recent profile written to and grab the most
 	# recent "main" ping from the profile
 	print("Find recent profile")
-	profileFolder = home + '\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles'
 	max_mtime = 0
-	for dirname,subdirs,files in os.walk(profileFolder):
+	for dirname,subdirs,files in os.walk(testProfile):
 		for fname in files:
 			if 'main' in fname:
 				full_path = os.path.join(dirname, fname)
@@ -199,7 +210,10 @@ else:
 	os.remove(logPML)
 
 # Randomly select what type of build we are going to profile
-testBuild = random.choice(buildList)
+if useRandomBuild or not cohort:
+	testBuild = random.choice(buildList)
+else:
+	testBuild = next(build for build in buildList if build.label != cohort)
 
 print("Append correct information to BuildType.txt")
 cohort = testBuild.label
@@ -214,6 +228,12 @@ print("Download build from task cluster")
 downloadedPath = home + '\\Downloads\\target.zip'
 urllib.request.urlretrieve(testBuild.buildLink, downloadedPath)
 
+print("Delete the profile")
+try:
+	shutil.rmtree(testProfile)
+except FileNotFoundError:
+	pass
+
 # Unzip the files within target directory
 print("Unzip build files")
 with ZipFile(downloadedPath, 'r') as zipObj:
@@ -223,8 +243,15 @@ os.remove(downloadedPath)
 # Copy the prefs file into the build
 prefLocation = home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults\\preferences\\preferences.js'
 # Create defaults\preferences directories to place preferences.js into
-os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults')
-os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults\\preferences')
+try:
+	os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults')
+except OSError:
+	pass
+try:
+	os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults\\preferences')
+except OSError:
+	pass
+
 shutil.copy(preferences, prefLocation)
 
 
@@ -232,10 +259,10 @@ shutil.copy(preferences, prefLocation)
 buildStarts = 2
 while buildStarts > 0:
 	print("Run build")
-	subprocess.Popen(firefox)
+	run_firefox()
 
 	# Wait for it to settle
-	time.sleep(30)
+	time.sleep(60)
 	
 	# Quit the application, one is sufficient because of preferences^
 	print("Close the build")

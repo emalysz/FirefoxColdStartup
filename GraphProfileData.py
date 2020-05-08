@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from pathlib import Path
 from scipy.stats import ttest_ind
-from sets import Set
 
 home = str(Path.home())
 pathToExperimentFolder = home + '\\Experiment'
@@ -32,7 +31,7 @@ colors = [
 ]
 
 builds = []
-buildSet = Set()
+buildSet = set()
 
 class DataPoint:
 	def __init__(self, timeStamp, time, label):
@@ -115,7 +114,7 @@ for filename in os.listdir(pathToExperimentFolder):
 		if buildLabel not in buildSet:
 			buildSet.add(buildLabel)
 			buildColor = colors[len(builds)]
-			builds.append({'label': buildLabel}, 'color': buildColor)
+			builds.append({'label': buildLabel, 'color': buildColor})
 
 		# Decompress files and convert to json
 		bytestream = open(fileLocation, "rb")
@@ -130,7 +129,7 @@ for filename in os.listdir(pathToExperimentFolder):
 			fin.write(text)
 		with open(newFile, 'r') as fin:
 			data = json.load(fin)
-			addDataPoints(data, label)
+			addDataPoints(data, buildLabel)
 
 # Graph first paint
 graphData(firstPaintList, "simpleMeasurements.firstPaint", True)
