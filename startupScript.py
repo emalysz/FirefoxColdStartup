@@ -37,10 +37,15 @@ from mozrunner import FirefoxRunner
 # AFTER RUNNING SCRIPT:
 # Re-enable UAC prompts. 
 
+class Build:
+	def __init__(self, label, buildLink):
+		self.label = label
+		self.buildLink = buildLink
+
 # TODO: Edit this list to include labels and links for builds
 buildList = [
-	Build("control", "<link>"),
-	Build("test", "<link>"),
+	Build("control", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/U3_0bAE9QeC495wRxWXG8Q/runs/0/artifacts/public/build/target.zip"),
+	Build("defer_safebrowsing", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/Xd6B2sFbSlSyQr8AiRbTaw/runs/0/artifacts/public/build/target.zip"),
 ]
 
 keyboard = Controller()
@@ -55,11 +60,6 @@ logPML = procmonFolder + '\\log.pml'
 preferences = home + '\\preferences.js'
 
 isFirstRun = False
-
-class Build:
-	def __init__(self, label, buildLink):
-		self.label = label
-		self.buildLink = buildLink
 
 # Disable UAC prompt to run procmon
 def disable_UAC():
@@ -77,6 +77,7 @@ buildTypeFilePath = pathToExperimentFolder + '\\BuildType.txt'
 # doesn't just get hung overnight.
 def restart_excepthook(etype, value, tb):
 	excString = ''.join(traceback.format_exception(etype, value, tb))
+	print(excString)	
 	# Append errors to an Errors.txt file so that we can go back and look through them after,
 	# say, running the script overnight.
 	with open(pathToExperimentFolder + '\\Errors.txt', "a+") as errorFile:
@@ -84,7 +85,6 @@ def restart_excepthook(etype, value, tb):
 		errorFile.write(str(datetime.now()) + "\n")
 		errorFile.write(excString)
 		errorFile.write("#####  END ERROR  ####\n\n")
-	print(excString)	
 
 	# Remove the BuildType.txt file, so the script starts over with a fresh slate.
 	# We will however continue to hold on to our results.
@@ -101,8 +101,6 @@ def restart_excepthook(etype, value, tb):
 
 
 sys.excepthook = restart_excepthook
-
-raise Exception("Bob!")
 
 try:
 	os.mkdir(pathToExperimentFolder)
@@ -139,7 +137,7 @@ else:
 	subprocess.Popen(firefox)
 
 	# Wait for it to settle 
-	time.sleep(30)
+	time.sleep(80)
 
 	# Save Procmon log
 	print("Save procmon log and diskify file")
@@ -214,6 +212,11 @@ print("Download build from task cluster")
 downloadedPath = home + '\\Downloads\\target.zip'
 urllib.request.urlretrieve(testBuild.buildLink, downloadedPath)
 
+try:
+	os.rmdir(home + "\\Downloads\\targetUnzip")
+except OSError:
+	pass
+
 # Unzip the files within target directory
 print("Unzip build files")
 with ZipFile(downloadedPath, 'r') as zipObj:
@@ -223,8 +226,15 @@ os.remove(downloadedPath)
 # Copy the prefs file into the build
 prefLocation = home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults\\preferences\\preferences.js'
 # Create defaults\preferences directories to place preferences.js into
-os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults')
-os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults\\preferences')
+try:
+	os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults')
+except OSError:
+	pass
+try:
+	os.mkdir(home + '\\Downloads\\targetUnzip\\firefox\\browser\\defaults\\preferences')
+except OSError:
+	pass
+
 shutil.copy(preferences, prefLocation)
 
 
@@ -235,7 +245,7 @@ while buildStarts > 0:
 	subprocess.Popen(firefox)
 
 	# Wait for it to settle
-	time.sleep(30)
+	time.sleep(60)
 	
 	# Quit the application, one is sufficient because of preferences^
 	print("Close the build")
