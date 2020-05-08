@@ -115,7 +115,7 @@ if isFirstRun:
 	# Create our file that holds the last build we ran
 	print("First run - create BuildType.txt")
 	with open(buildTypeFilePath, "w+") as fin:
-		cohort = fin.read()
+		pass
 
 	# Disable UAC prompt
 	print("Disable UAC prompt")	
