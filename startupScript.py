@@ -44,8 +44,8 @@ class Build:
 
 # TODO: Edit this list to include labels and links for builds
 buildList = [
-	Build("control", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/U3_0bAE9QeC495wRxWXG8Q/runs/0/artifacts/public/build/target.zip"),
-	Build("defer_safebrowsing", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/Xd6B2sFbSlSyQr8AiRbTaw/runs/0/artifacts/public/build/target.zip"),
+	Build("control", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/QZejzYl1TVmmBv8ABXzzAg/runs/0/artifacts/public/build/target.zip"),
+	Build("mod_prefetch", "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/CLxX1dPORFKMmGa20KmHvg/runs/0/artifacts/public/build/target.zip"),
 ]
 
 keyboard = Controller()
@@ -76,6 +76,7 @@ def run_firefox():
 pathToExperimentFolder = home + '\\Experiment'
 # BuildType.txt will indicate if the last run was a control or test build
 buildTypeFilePath = pathToExperimentFolder + '\\BuildType.txt'
+useRandomBuildPath = pathToExperimentFolder + '\\UseRandomBuild'
 
 # This is not generally advisable, but this will ensure that our script
 # doesn't just get hung overnight.
@@ -114,6 +115,15 @@ except OSError:
 
 if not os.path.exists(buildTypeFilePath):
 	isFirstRun = True
+
+if os.path.exists(useRandomBuildPath):
+	useRandomBuild = True
+	os.remove(useRandomBuildPath)
+else:
+	useRandomBuild = False
+	open(useRandomBuildPath, "w+").close()
+
+cohort = None
 
 if isFirstRun:
 	# Create our file that holds the last build we ran
@@ -200,7 +210,10 @@ else:
 	os.remove(logPML)
 
 # Randomly select what type of build we are going to profile
-testBuild = random.choice(buildList)
+if useRandomBuild or not cohort:
+	testBuild = random.choice(buildList)
+else:
+	testBuild = next(build for build in buildList if build.label != cohort)
 
 print("Append correct information to BuildType.txt")
 cohort = testBuild.label
@@ -215,14 +228,10 @@ print("Download build from task cluster")
 downloadedPath = home + '\\Downloads\\target.zip'
 urllib.request.urlretrieve(testBuild.buildLink, downloadedPath)
 
+print("Delete the profile")
 try:
-	os.rmdir(home + "\\Downloads\\targetUnzip")
-except OSError:
-	pass
-
-try:
-	os.rmdir(testProfile)
-except OSError:
+	shutil.rmtree(testProfile)
+except FileNotFoundError:
 	pass
 
 # Unzip the files within target directory
