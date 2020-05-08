@@ -53,6 +53,7 @@ keyboard = Controller()
 # Paths to executables and batch files
 home = str(Path.home())
 firefox = home + '\\Downloads\\targetUnzip\\firefox\\firefox.exe'
+testProfile = home + '\\testprofile'
 procmonFolder = home + '\\Documents\\ProcessMonitor'
 openProcmonBatch = procmonFolder + '\\openProcmon.bat'
 saveProcmonBatch = procmonFolder + '\\saveProcmon.bat'
@@ -67,6 +68,9 @@ def disable_UAC():
     win32shell.ShellExecuteEx(lpVerb='runas', lpFile='cmd.exe', lpParameters='/c ' + command1)
     command2 = 'reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v EnableLUA /t REG_DWORD /d 0 /f'
     win32shell.ShellExecuteEx(lpVerb='runas', lpFile='cmd.exe', lpParameters='/c ' + command2)
+
+def run_firefox():
+	subprocess.Popen([firefox, "-profile", testProfile])
 
 # Create a folder to place all profiles, procmon logs, and disk files into
 pathToExperimentFolder = home + '\\Experiment'
@@ -134,7 +138,7 @@ else:
 
 	# Launch the profile
 	print("Launching firefox instance that will be profiled")
-	subprocess.Popen(firefox)
+	run_firefox()
 
 	# Wait for it to settle 
 	time.sleep(80)
@@ -157,9 +161,8 @@ else:
 	# Find the most recent profile written to and grab the most
 	# recent "main" ping from the profile
 	print("Find recent profile")
-	profileFolder = home + '\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles'
 	max_mtime = 0
-	for dirname,subdirs,files in os.walk(profileFolder):
+	for dirname,subdirs,files in os.walk(testProfile):
 		for fname in files:
 			if 'main' in fname:
 				full_path = os.path.join(dirname, fname)
@@ -217,6 +220,11 @@ try:
 except OSError:
 	pass
 
+try:
+	os.rmdir(testProfile)
+except OSError:
+	pass
+
 # Unzip the files within target directory
 print("Unzip build files")
 with ZipFile(downloadedPath, 'r') as zipObj:
@@ -242,7 +250,7 @@ shutil.copy(preferences, prefLocation)
 buildStarts = 2
 while buildStarts > 0:
 	print("Run build")
-	subprocess.Popen(firefox)
+	run_firefox()
 
 	# Wait for it to settle
 	time.sleep(60)
